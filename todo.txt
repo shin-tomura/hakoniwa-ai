@@ -1,0 +1,213 @@
+// share_manager.dart の中にあるコレを書き変える & pubspec.yamlも書き換える
+static const String currentAppVersion = "1.2.0";
+---------------------------------------------------
+Android版のみ1.4.3で起動時に落ちる不具合を修正
+---------------------------------------------------
+3.1.5 3150
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・数式ビルダーにフェイルセーフ機能付きの4つの数学関数（対数、ネイピア値、平方根、絶対値）を追加し、CSV一括推論にも適用しました。
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Added four math functions (log, exp, sqrt, abs) with fail-safe mechanisms to the formula builder and extended support to CSV batch prediction.
+
+
+
+3.1.4 3140
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・CSVからのノード生成時の列同士を組み合わせたカスタム特徴量列作成機能を拡張しました。
+・出力列が複数ある場合には、提出用CSVファイルに出力する列を選択できるようにしました。
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Extended the custom feature column creation functionality that combines multiple columns when generating nodes from CSV.
+・Added the ability to select which columns to output to the submission CSV file when multiple output columns exist.
+
+
+3.1.3 3130
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・CSVからのノード生成時に、列同士を組み合わせたカスタム特徴量を自由に作成可能になりました。
+・モデル評価時のデータ制限（200件）を撤廃し、全検証データを用いた高精度な指標算出に対応しました。
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Create custom features by combining columns during automatic node generation from CSV files.
+・Removed the 200-sample limit for model evaluation, enabling high-precision metrics calculation using the full validation dataset.
+
+
+3.1.2 3120
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・Kaggle提出用のCSV出力機能を強化：特定のカテゴリ確率での出力オプション追加しました。
+・分類モデルの精度を向上させるため、大規模データ読み込み時に出力カテゴリのデータ件数を自動で揃える「均等化サンプリング機能」を追加しました。
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Added Kaggle-ready CSV export with a new option to output specific category probabilities.
+・Added an "Equalized Sampling" feature that automatically balances output category distributions in large datasets to improve classification model accuracy.
+
+
+3.1.1 3110
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・隠れ層にReLUを選択した際、「Heの初期化」が自動適用されるようになり、学習の安定性が向上しました。
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Improved learning stability by automatically applying He initialization when ReLU is selected.
+
+
+3.1.0 3100
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・大規模データの前処理から一括推論までを全自動化する「Kaggleスタイル」のCSVインポート機能を追加しました。
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Added a "Kaggle-style" CSV import mode featuring automated data preprocessing and batch predictions.
+
+
+3.0.1 3010
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・AIを育てて16×16のドット絵を生成・変形して遊べる「画像生成(VAE)モード」を新搭載しました
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Introducing the new VAE Image Gen mode: train your AI to generate and morph 16x16 pixel art!
+
+
+2.0.1 2010
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・SigmoidやTanhでドロップアウトを使用する際の学習の安定性を向上させました
+・[RF]連続値データの学習アルゴリズムに『スマート間引き（分位点ビニング）』を導入。精度を維持したまま、学習スピードを大幅に向上させました。
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Improved training stability for models using Dropout with Sigmoid/Tanh activations.
+・[RF]Optimized training speed for continuous data by implementing smart binning (quantile-based binning).
+
+
+2.0.0 2000
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・ランダムフォレスト計算エンジンを新規実装しました。
+・UIやUXの調整をしました。
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Newly implemented the Random Forest calculation engine.
+・Adjusted the UI and UX.
+
+
+1.5.0 1500
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・新たに15種類の初期サンプルプロジェクトを追加しました。
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Added 15 new default sample projects.
+
+
+1.4.9 1490
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・追加学習時のデータリーク（過学習）を防ぐため、データ分割のシード値を固定し、評価の信頼性を高めました。
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Fixed a data leakage issue during incremental training by fixing the random seed, ensuring stable evaluation.
+
+
+1.4.8 1480
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・外部ライブラリ不要でESP32やArduino等のマイコンでAIを動かせる、2種類のC++コード出力（リッチ版・ベアメタル版）を追加しました。
+・各言語の出力コードの品質向上を行いました。
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Added "Rich (ESP32)" and "Bare-Metal (Arduino)" C++ export modes to run AI on microcontrollers with zero external dependencies.
+・Improved the output code quality across all supported languages.
+
+
+1.4.7 1470
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・新たに「Pure Rust」での推論コード出力に対応！また、C++エクスポート機能におけるテキスト生成モデルの安定性を向上させました。
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Added the ultimate feature to export trained models as pure Rust code! Also improved the stability of C++ code generation for text models.
+
+
+1.4.6 1460
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・学習済みモデルをマイコンや組み込み環境で即使える「Pure C++」コードとして書き出せるエクスポート機能を追加しました。
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Added a new feature to export trained models as pure C++ code, optimized for instant use on microcontrollers and embedded systems.
+
+
+1.4.5 1450
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・Python推論コードの出力機能を大幅に強化し、直感的なデータ入力とコピペでの即実行に対応した
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Significantly enhanced Python code export with intuitive data inputs and an instant-run execution block.
+
+
+1.4.4 1440
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・学習済みのAIモデルをPythonコードとしてエクスポートする機能を追加しました。
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Added a feature to export the trained AI model as Python code.
+
+
+1.4.3 1430
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・Dartコード書き出し機能（テキスト生成）のバグ修正と出力コードの品質向上を行なった
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Fixed bugs and improved code quality in the Dart code export feature for text generation.
+
+
+1.4.2 1420
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・学習の推移や特徴量の重要度を1枚のダッシュボードにまとめた、本格的なPDF分析レポートの出力機能を追加した
+・書き出されるDartコードに入力仕様のコメントを追加し、エンコード処理における数値比較の安定性を向上させた
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Added a feature to export a comprehensive PDF analysis report detailing training history, charts, and feature importance.
+・Improved the exported Dart code by adding input specification comments and enhancing the stability of numeric comparisons.
+
+1.4.1 1410
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・学習済みAIを自作アプリに組み込める「Dartコードエクスポート機能」を追加した
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Added "Dart Code Export" to easily integrate trained AI into your own apps!
+
+
+1.4.0 1405
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・ついに英語対応！スマホの言語設定に合わせて自動で英語に切り替わるようになった
+・プロジェクトをコピーした際、損失関数の設定が初期化されてしまうバグを修正した
+
+1.3.1 1310
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・学習中の描画処理の最適化を行ない、処理速度の改善を図った
+
+1.3.0 1300
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・AIが判断に用いる入力項目の影響度（Feature Importance）を、結合強度（Connection Weights）や詳細な感度分析（Permutation Importance）によって可視化する機能を追加した
+・学習画面に、入力項目の有効・無効を切り替えて、特定のデータの重要度を検証できる「入力項目の選択(実験室)」を追加した
+・学習画面で、AIの「迷いの混同行列（分類問題）」や「予測のズレの散布図（数値予測）」を可視化したり、分類問題での「正答率」を測定できるようにした
+・テキスト生成モードにおいて、AIが次に選ぶ「1文字」と、その先の展開を予見する「2手先までの未来予知」機能を推論画面に追加した
+・テキスト生成モードの場合には、検証用のデータを抽出せずに、すべてのデータを学習するようにした。
+・学習エポック数を数値の直接入力でも設定できるようになった
+・座談会で、参加者が1人の場合を除き、同じAIが2回続けて発言することがないようにした
+・学習画面のレイアウトを調整し、画面全体のスクロール操作をしやすく改善した
+・特徴量定義で「分類」を選択している場合、CSV内のデータが数値（例: 3）であっても、数値型へ変換せず優先的にカテゴリ（例: "3"）として照合するように変更した。これにより、数値として記録されたカテゴリ変数の読み込みエラーが解消されます。
+・初期のサンプルデータを改訂した(新規インストール時またはプロジェクトを全て削除した状態でのアプリ再起動時に出現)
+・説明書をリニューアルした
+
+1.2.0 1200
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・テキスト生成モードに、AIの文脈把握力を変える「推測文字数（1〜5文字）」の設定を追加した
+・隠れ層なし(隠れ層の数0)も選べるようになった
+・プロジェクト一覧画面で、プロジェクト名を編集できるようになった
+・テキスト生成モードのセーブデータ構造を見直し、長文を学習させてもファイル容量が軽く済むように最適化した
+・学習中の「停止」ボタンの反応速度を大幅に改善した
+
+1.1.0 1100
+・自分で育てたテキスト生成AI同士が会話する座談会モードを実装した（※このモードを含め、アプリ内のAI処理は一切外部と通信せず、すべてオフラインで完結しています。）。
+・各層ごとにユニット数を決定できるようになった。
+・プロジェクトのファイル入出力（圧縮時最大5MBまで）に対応した。これにより、データのバックアップや、クリップボード経由では難しかった件数の多いデータの共有が可能になった。
+
+1.0.1 1010
+・iPadなどの大画面端末において、文字サイズや操作パーツが自動で最適化されるようレスポンシブ対応を行なった
+・分類問題やテキスト生成の学習精度を大幅に向上させる新オプション「交差エントロピー誤差」を選択可能にした。
+・入力済みデータの編集が可能になった(ただし、削除や追加も同様ですが、データの編集をするとそれまでの学習はすべてリセットされます。)
+・学習用データと検証用データの分割方法に「ランダム抽出」を追加し、設定画面から従来の「末尾抽出」と任意に切り替えられるようにした。これに伴い、通常モードの初期値を偏りの少ないランダム抽出に変更し、時系列を扱うテキスト生成モードでは末尾抽出が自動設定されるよう最適化を行なった。
+・説明書に学習率やバイアス・重みについてなどいろいろ追記した
