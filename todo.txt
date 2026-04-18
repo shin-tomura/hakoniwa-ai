@@ -6,10 +6,11 @@ Android版のみ1.4.3で起動時に落ちる不具合を修正
 3.1.5 3150
 ※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
 ・数式ビルダーにフェイルセーフ機能付きの4つの数学関数（対数、ネイピア値、平方根、絶対値）を追加し、CSV一括推論にも適用しました。
+・データ前処理のプロファイリング画面に、動的に切り替わるヒストグラムとカテゴリ割合バーを追加しました。
 
 Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
 ・Added four math functions (log, exp, sqrt, abs) with fail-safe mechanisms to the formula builder and extended support to CSV batch prediction.
-
+・Added dynamic histograms and category distribution bars to the data profiling UI.
 
 
 3.1.4 3140

@@ -35,7 +35,7 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
   bool _isLoading = false;
   String _statusText = "Please select a CSV file...";
 
-  List<String> _baseHeaders = []; // ★ 元のCSVヘッダーを保持
+  List<String> _baseHeaders = [];
   List<ColumnProfile> _profiles = [];
   List<List<String>> _sampledData = [];
   String? _csvFilePath;
@@ -186,7 +186,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
     if (op == '_') return "${left.toString()}_${right.toString()}";
 
     if (left is! double || right is! double) {
-      // 型混在時は安全のために強制的に文字列結合 (カテゴリ化)
       return "${left.toString()}_${right.toString()}";
     }
 
@@ -200,25 +199,20 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
       case '*':
         return l * r;
       case '/':
-        return r == 0 ? 0.0 : l / r; // ゼロ除算回避
+        return r == 0 ? 0.0 : l / r;
     }
     return 0.0;
   }
 
-  // 単項演算子（関数）用の計算処理とフェイルセーフ機構
   dynamic _calculateUnary(dynamic val, String op) {
     if (val is! double) return 0.0;
-
     double v = val;
     switch (op) {
       case 'log':
-        // フェイルセーフ: 0以下によるエラーを回避するため、絶対値を取って+1する
         return log(v.abs() + 1.0);
       case 'exp':
-        // フェイルセーフ: Infinityやオーバーフロー回避のため、入力を-100〜100の範囲にクランプ
         return exp(v.clamp(-100.0, 100.0));
       case 'sqrt':
-        // フェイルセーフ: 負の数によるNaNを回避するため、絶対値の平方根を取る
         return sqrt(v.abs());
       case 'abs':
         return v.abs();
@@ -233,7 +227,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
   ) {
     if (tokens.isEmpty) return "0.0";
 
-    // --- 特別な変換ルールの評価 (Map / Bin) ---
     if (tokens.first == '__MAP__') {
       String colName = tokens[1];
       int idx = headers.indexOf(colName);
@@ -241,7 +234,7 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
       for (int i = 2; i < tokens.length; i += 2) {
         if (tokens[i] == val) return tokens[i + 1];
       }
-      return "0.0"; // デフォルト
+      return "0.0";
     }
 
     if (tokens.first == '__BIN__') {
@@ -249,7 +242,7 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
       int idx = headers.indexOf(colName);
       String val = idx != -1 && idx < row.length ? row[idx] : "";
       double? numVal = double.tryParse(val);
-      if (numVal == null) return tokens.last; // パース不可ならデフォルトラベル
+      if (numVal == null) return tokens.last;
 
       for (int i = 2; i < tokens.length - 1; i += 2) {
         double? thresh = double.tryParse(tokens[i]);
@@ -257,23 +250,19 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
           return tokens[i + 1];
         }
       }
-      return tokens.last; // どの閾値にも当てはまらない場合
+      return tokens.last;
     }
 
-    // --- 通常の数式評価 ---
-    // --- 通常の数式評価 ---
     try {
       List<String> postfix = _toPostfix(tokens);
       List<dynamic> stack = [];
       for (String t in postfix) {
         if (_isOperator(t)) {
           if (['log', 'exp', 'sqrt', 'abs'].contains(t)) {
-            // 単項演算子（関数）の処理: 1つだけポップする
             if (stack.isEmpty) return "0.0";
             var val = stack.removeLast();
             stack.add(_calculateUnary(val, t));
           } else {
-            // 二項演算子の処理: 2つポップする
             if (stack.length < 2) return "0.0";
             var right = stack.removeLast();
             var left = stack.removeLast();
@@ -289,7 +278,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
     }
   }
 
-  // ベース行に対して全てのカスタム特徴量を動的に適用する
   List<String> _expandRowWithRecipes(List<String> baseRow) {
     if (_customRecipes.isEmpty) return baseRow;
     List<String> expanded = List.from(baseRow);
@@ -302,7 +290,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
     return expanded;
   }
 
-  // --- CSV初期読み込み ---
   Future<void> _pickAndProcessCsv() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -443,7 +430,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
     }
   }
 
-  // --- 特徴量追加の共通処理 ---
   void _commitNewFeature(String newName, List<String> tokens) {
     final double scale = ScaleUtil.scale(context);
     List<String> currentHeaders = _profiles.map((p) => p.name).toList();
@@ -466,7 +452,7 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
           if (numVal < newProfile.minVal) newProfile.minVal = numVal;
           if (numVal > newProfile.maxVal) newProfile.maxVal = numVal;
         } else {
-          newProfile.type = 1; // Category
+          newProfile.type = 1;
         }
       }
     }
@@ -494,7 +480,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
     _featureNameController.clear();
   }
 
-  // Mapルールの適用
   void _applyMapFeature() {
     String newName = _mapFeatureNameController.text.trim();
     if (newName.isEmpty || _selectedMapColumn == null) return;
@@ -507,12 +492,10 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
 
     _commitNewFeature(newName, tokens);
     _mapFeatureNameController.clear();
-    // 状態リセット
     _mapBindings.clear();
     _selectedMapColumn = null;
   }
 
-  // Binルールの適用
   void _applyBinFeature() {
     String newName = _binFeatureNameController.text.trim();
     if (newName.isEmpty || _selectedBinColumn == null || _binRules.isEmpty)
@@ -520,7 +503,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
 
     List<String> tokens = ['__BIN__', _selectedBinColumn!];
 
-    // 閾値でソート (昇順)
     _binRules.sort(
       (a, b) => (a['thresh'] as double).compareTo(b['thresh'] as double),
     );
@@ -542,7 +524,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
     _selectedBinColumn = null;
   }
 
-  // Map(カテゴリ→数値)対象カラム選択時の処理
   void _onMapColumnSelected(String? colName) {
     setState(() {
       _selectedMapColumn = colName;
@@ -611,7 +592,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
     );
   }
 
-  // --- モデルビルド＆書き出し ---
   Future<void> _buildAndExportProject() async {
     setState(() {
       _isLoading = true;
@@ -696,7 +676,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
           continue;
         }
 
-        // カスタム特徴量を適用して行を展開
         List<String> row = _expandRowWithRecipes(_parseCsvLine(line));
 
         if (targetOutputColIndex < row.length) {
@@ -768,7 +747,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
         }
 
         if (selectedRowIndices.contains(rowIndex)) {
-          // パス2でも展開する
           newSampledData.add(_expandRowWithRecipes(_parseCsvLine(line)));
         }
         rowIndex++;
@@ -910,6 +888,215 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
     }
   }
 
+  // ==========================================
+  // --- New Feature: Dynamic Stats Builders ---
+  // ==========================================
+
+  Widget _buildNumericStats(ColumnProfile p, int colIndex, double scale) {
+    double minVal = double.infinity;
+    double maxVal = double.negativeInfinity;
+    double sumVal = 0.0;
+    int count = 0;
+    List<double> validValues = [];
+
+    // Evaluate live from sampled data
+    for (var row in _sampledData) {
+      if (colIndex < row.length) {
+        String val = row[colIndex];
+        if (val.isNotEmpty && val.toLowerCase() != 'nan') {
+          double? numVal = double.tryParse(val);
+          if (numVal != null) {
+            if (numVal < minVal) minVal = numVal;
+            if (numVal > maxVal) maxVal = numVal;
+            sumVal += numVal;
+            count++;
+            validValues.add(numVal);
+          }
+        }
+      }
+    }
+
+    double mean = count > 0 ? sumVal / count : 0.0;
+    if (count == 0) {
+      minVal = 0;
+      maxVal = 0;
+    }
+
+    int binCount = 20;
+    List<int> bins = List.filled(binCount, 0);
+    int maxBinCount = 0;
+
+    if (count > 0 && maxVal > minVal) {
+      double binSize = (maxVal - minVal) / binCount;
+      if (binSize == 0) {
+        bins[0] = count;
+        maxBinCount = count;
+      } else {
+        for (double v in validValues) {
+          int binIdx = ((v - minVal) / binSize).floor();
+          if (binIdx >= binCount) binIdx = binCount - 1;
+          bins[binIdx]++;
+          if (bins[binIdx] > maxBinCount) {
+            maxBinCount = bins[binIdx];
+          }
+        }
+      }
+    } else if (count > 0 && maxVal == minVal) {
+      bins[0] = count;
+      maxBinCount = count;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              "Min: ${minVal.toStringAsFixed(2)}",
+              style: TextStyle(fontSize: 12 * scale, color: Colors.blueAccent),
+            ),
+            Text(
+              "Mean: ${mean.toStringAsFixed(2)}",
+              style: TextStyle(fontSize: 12 * scale, color: Colors.greenAccent),
+            ),
+            Text(
+              "Max: ${maxVal.toStringAsFixed(2)}",
+              style: TextStyle(fontSize: 12 * scale, color: Colors.redAccent),
+            ),
+          ],
+        ),
+        SizedBox(height: 8 * scale),
+        if (count > 0 && maxBinCount > 0)
+          Container(
+            height: 40 * scale,
+            width: double.infinity,
+            padding: EdgeInsets.only(top: 8 * scale),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: bins.map((b) {
+                double heightRatio = b / maxBinCount;
+                return Expanded(
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 1.0),
+                    height: 40 * scale * heightRatio,
+                    decoration: BoxDecoration(
+                      color: Colors.blueAccent.withOpacity(0.7),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(2 * scale),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryStats(ColumnProfile p, int colIndex, double scale) {
+    Map<String, int> counts = {};
+    int totalValid = 0;
+
+    for (var row in _sampledData) {
+      if (colIndex < row.length) {
+        String val = row[colIndex];
+        if (val.isNotEmpty && val.toLowerCase() != 'nan') {
+          counts[val] = (counts[val] ?? 0) + 1;
+          totalValid++;
+        }
+      }
+    }
+
+    if (totalValid == 0) return const SizedBox();
+
+    List<MapEntry<String, int>> sorted = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    List<MapEntry<String, int>> displayList = [];
+    bool hasMiddle = false;
+
+    if (sorted.length <= 6) {
+      displayList = sorted;
+    } else {
+      displayList.addAll(sorted.take(3));
+      hasMiddle = true;
+      displayList.addAll(sorted.skip(sorted.length - 3));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < displayList.length; i++) ...[
+          if (hasMiddle && i == 3)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 4 * scale),
+              child: Center(
+                child: Text(
+                  "...",
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12 * scale,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          _buildCategoryRow(
+            displayList[i].key,
+            displayList[i].value,
+            totalValid,
+            scale,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCategoryRow(String name, int count, int total, double scale) {
+    double ratio = total > 0 ? count / total : 0.0;
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 2.0 * scale),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(
+              name,
+              style: TextStyle(fontSize: 12 * scale, color: Colors.white),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          SizedBox(width: 8 * scale),
+          Expanded(
+            flex: 4,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4 * scale),
+              child: LinearProgressIndicator(
+                value: ratio,
+                backgroundColor: Colors.grey.shade800,
+                color: Colors.orangeAccent,
+                minHeight: 8 * scale,
+              ),
+            ),
+          ),
+          SizedBox(width: 8 * scale),
+          SizedBox(
+            width: 40 * scale,
+            child: Text(
+              "${(ratio * 100).toStringAsFixed(1)}%",
+              style: TextStyle(fontSize: 11 * scale, color: Colors.white70),
+              textAlign: TextAlign.right,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+
   @override
   Widget build(BuildContext context) {
     final double scale = ScaleUtil.scale(context);
@@ -936,7 +1123,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
 
     int sampleSize = _sampledData.length;
 
-    // リアルタイムミニプレビュー（組み立て中のライブ表示用）
     List<String> miniPreview = [];
     if (_currentRecipeTokens.isNotEmpty && _sampledData.isNotEmpty) {
       List<String> currentHeaders = _profiles.map((p) => p.name).toList();
@@ -961,11 +1147,8 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
       ),
       body: ListView.builder(
         padding: EdgeInsets.only(bottom: 88 * scale),
-        itemCount:
-            _profiles.length +
-            3, // 0: Config, 1: Formula, 2: Transform, 3+: Profiles
+        itemCount: _profiles.length + 3,
         itemBuilder: (context, index) {
-          // --- インデックス0: 全体設定 ---
           if (index == 0) {
             return Container(
               padding: EdgeInsets.all(16 * scale),
@@ -1051,7 +1234,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
             );
           }
 
-          // --- インデックス1: カスタム特徴量ビルダー (数式) ---
           if (index == 1) {
             return Card(
               margin: EdgeInsets.symmetric(
@@ -1077,7 +1259,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                         ),
                         SizedBox(width: 8 * scale),
                         Expanded(
-                          // 親のRowなどの残り幅に合わせるために必要
                           child: Text(
                             "Custom Feature Builder (Formula)",
                             style: TextStyle(
@@ -1085,16 +1266,14 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                               fontWeight: FontWeight.bold,
                               fontSize: 16 * scale,
                             ),
-                            overflow: TextOverflow.ellipsis, // はみ出した分を「...」にする
-                            maxLines: 1, // 1行に制限する
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                             softWrap: false,
                           ),
                         ),
                       ],
                     ),
                     SizedBox(height: 8 * scale),
-
-                    // 数式トークンの表示エリア
                     Container(
                       width: double.infinity,
                       constraints: BoxConstraints(minHeight: 40 * scale),
@@ -1144,7 +1323,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                       ),
                     ),
                     SizedBox(height: 8 * scale),
-
                     Text(
                       "1. Append Column",
                       style: TextStyle(
@@ -1200,7 +1378,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                         ),
                       ],
                     ),
-
                     Text(
                       "2. Append Operator ( _ = concat)",
                       style: TextStyle(
@@ -1226,7 +1403,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                           .toList(),
                     ),
                     SizedBox(height: 8 * scale),
-
                     Text(
                       "3. Append Constant / Symbol",
                       style: TextStyle(
@@ -1250,7 +1426,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                           .toList(),
                     ),
                     Divider(color: Colors.grey.shade700, height: 24 * scale),
-
                     Row(
                       children: [
                         Expanded(
@@ -1268,7 +1443,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                       ],
                     ),
                     SizedBox(height: 8 * scale),
-
                     if (miniPreview.isNotEmpty)
                       Padding(
                         padding: EdgeInsets.only(bottom: 8 * scale),
@@ -1281,7 +1455,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                           ),
                         ),
                       ),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
@@ -1320,7 +1493,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
             );
           }
 
-          // --- インデックス2: データ変換 (Map / Bin) ---
           if (index == 2) {
             return Card(
               margin: EdgeInsets.symmetric(
@@ -1346,7 +1518,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                         ),
                         SizedBox(width: 8 * scale),
                         Expanded(
-                          // 親のRowなどの残り幅に合わせるために必要
                           child: Text(
                             "Data Transformation (Map / Bin)",
                             style: TextStyle(
@@ -1354,15 +1525,14 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                               fontWeight: FontWeight.bold,
                               fontSize: 16 * scale,
                             ),
-                            overflow: TextOverflow.ellipsis, // はみ出した分を「...」にする
-                            maxLines: 1, // 1行に制限する
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                             softWrap: false,
                           ),
                         ),
                       ],
                     ),
                     SizedBox(height: 12 * scale),
-
                     Center(
                       child: SegmentedButton<int>(
                         segments: [
@@ -1392,8 +1562,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                       ),
                     ),
                     SizedBox(height: 12 * scale),
-
-                    // --- モード0: Map (カテゴリ → 数値) ---
                     if (_transformMode == 0) ...[
                       Text(
                         "Select Category Column:",
@@ -1421,7 +1589,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                         }).toList(),
                         onChanged: _onMapColumnSelected,
                       ),
-
                       if (_mapBindings.isNotEmpty) ...[
                         SizedBox(height: 8 * scale),
                         Text(
@@ -1497,7 +1664,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                           ),
                         ),
                       ],
-
                       Divider(color: Colors.grey.shade700, height: 24 * scale),
                       Row(
                         children: [
@@ -1536,8 +1702,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                         ),
                       ),
                     ],
-
-                    // --- モード1: Bin (数値 → カテゴリ) ---
                     if (_transformMode == 1) ...[
                       Text(
                         "Select Numeric Column:",
@@ -1569,7 +1733,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                           });
                         },
                       ),
-
                       if (_binRules.isNotEmpty) ...[
                         SizedBox(height: 8 * scale),
                         Text(
@@ -1657,7 +1820,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                           ),
                         ),
                       ],
-
                       SizedBox(height: 8 * scale),
                       Row(
                         children: [
@@ -1711,7 +1873,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                                     'thresh': t,
                                     'label': _binLabelController.text,
                                   });
-                                  // 視覚的な整列のためにここで一旦ソートしておく
                                   _binRules.sort(
                                     (a, b) => (a['thresh'] as double).compareTo(
                                       b['thresh'] as double,
@@ -1725,7 +1886,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                           ),
                         ],
                       ),
-
                       SizedBox(height: 8 * scale),
                       Row(
                         children: [
@@ -1753,7 +1913,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                           ),
                         ],
                       ),
-
                       Divider(color: Colors.grey.shade700, height: 24 * scale),
                       Row(
                         children: [
@@ -1799,7 +1958,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
             );
           }
 
-          // --- インデックス3以降: 各列のプロファイルカード ---
           var p = _profiles[index - 3];
           double missingRate =
               p.missingCount / (sampleSize > 0 ? sampleSize : 1);
@@ -1865,123 +2023,141 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                   SizedBox(height: 12 * scale),
                   Opacity(
                     opacity: p.role == 0 ? 0.5 : 1.0,
-                    child: Wrap(
-                      spacing: 8 * scale,
-                      runSpacing: 8 * scale,
-                      crossAxisAlignment: WrapCrossAlignment.center,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SegmentedButton<int>(
-                          segments: [
-                            ButtonSegment(
-                              value: 0,
-                              label: Text(
-                                "Ignore",
-                                style: TextStyle(fontSize: 12 * scale),
-                              ),
+                        if (p.role != 0) ...[
+                          Container(
+                            padding: EdgeInsets.all(8 * scale),
+                            decoration: BoxDecoration(
+                              color: Colors.black26,
+                              borderRadius: BorderRadius.circular(4 * scale),
                             ),
-                            ButtonSegment(
-                              value: 1,
-                              label: Text(
-                                "Input",
-                                style: TextStyle(fontSize: 12 * scale),
-                              ),
-                            ),
-                            ButtonSegment(
-                              value: 2,
-                              label: Text(
-                                "Output",
-                                style: TextStyle(fontSize: 12 * scale),
-                              ),
-                            ),
-                          ],
-                          selected: {p.role},
-                          onSelectionChanged: (val) {
-                            setState(() {
-                              p.role = val.first;
-                            });
-                          },
-                          style: const ButtonStyle(
-                            visualDensity: VisualDensity.compact,
+                            child: p.type == 0
+                                ? _buildNumericStats(p, index - 3, scale)
+                                : _buildCategoryStats(p, index - 3, scale),
                           ),
-                        ),
-                        SegmentedButton<int>(
-                          segments: [
-                            ButtonSegment(
-                              value: 0,
-                              label: Text(
-                                "Numeric",
-                                style: TextStyle(fontSize: 12 * scale),
+                          SizedBox(height: 12 * scale),
+                        ],
+                        Wrap(
+                          spacing: 8 * scale,
+                          runSpacing: 8 * scale,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            SegmentedButton<int>(
+                              segments: [
+                                ButtonSegment(
+                                  value: 0,
+                                  label: Text(
+                                    "Ignore",
+                                    style: TextStyle(fontSize: 12 * scale),
+                                  ),
+                                ),
+                                ButtonSegment(
+                                  value: 1,
+                                  label: Text(
+                                    "Input",
+                                    style: TextStyle(fontSize: 12 * scale),
+                                  ),
+                                ),
+                                ButtonSegment(
+                                  value: 2,
+                                  label: Text(
+                                    "Output",
+                                    style: TextStyle(fontSize: 12 * scale),
+                                  ),
+                                ),
+                              ],
+                              selected: {p.role},
+                              onSelectionChanged: (val) {
+                                setState(() {
+                                  p.role = val.first;
+                                });
+                              },
+                              style: const ButtonStyle(
+                                visualDensity: VisualDensity.compact,
                               ),
                             ),
-                            ButtonSegment(
-                              value: 1,
-                              label: Text(
-                                "Category",
-                                style: TextStyle(fontSize: 12 * scale),
+                            SegmentedButton<int>(
+                              segments: [
+                                ButtonSegment(
+                                  value: 0,
+                                  label: Text(
+                                    "Numeric",
+                                    style: TextStyle(fontSize: 12 * scale),
+                                  ),
+                                ),
+                                ButtonSegment(
+                                  value: 1,
+                                  label: Text(
+                                    "Category",
+                                    style: TextStyle(fontSize: 12 * scale),
+                                  ),
+                                ),
+                              ],
+                              selected: {p.type},
+                              onSelectionChanged: (val) {
+                                setState(() {
+                                  p.type = val.first;
+                                  if (p.type == 1 && p.missingStrategy == 1) {
+                                    p.missingStrategy = 0;
+                                  }
+                                });
+                              },
+                              style: const ButtonStyle(
+                                visualDensity: VisualDensity.compact,
                               ),
+                            ),
+                            DropdownButton<int>(
+                              value: p.missingStrategy,
+                              dropdownColor: Colors.grey.shade800,
+                              items: [
+                                DropdownMenuItem(
+                                  value: 0,
+                                  child: Text(
+                                    p.type == 0
+                                        ? "Fill with Mean"
+                                        : "Fill with Mode",
+                                    style: TextStyle(fontSize: 12 * scale),
+                                  ),
+                                ),
+                                if (p.type == 0)
+                                  DropdownMenuItem(
+                                    value: 1,
+                                    child: Text(
+                                      "Fill with Median",
+                                      style: TextStyle(fontSize: 12 * scale),
+                                    ),
+                                  ),
+                                DropdownMenuItem(
+                                  value: 2,
+                                  child: Text(
+                                    p.type == 0
+                                        ? "Fill with Zero (0)"
+                                        : "Treat as 'Unknown'",
+                                    style: TextStyle(fontSize: 12 * scale),
+                                  ),
+                                ),
+                                DropdownMenuItem(
+                                  value: 3,
+                                  child: Text(
+                                    "Drop Row",
+                                    style: TextStyle(
+                                      fontSize: 12 * scale,
+                                      color: Colors.redAccent,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    p.missingStrategy = val;
+                                  });
+                                }
+                              },
                             ),
                           ],
-                          selected: {p.type},
-                          onSelectionChanged: (val) {
-                            setState(() {
-                              p.type = val.first;
-                              if (p.type == 1 && p.missingStrategy == 1) {
-                                p.missingStrategy = 0;
-                              }
-                            });
-                          },
-                          style: const ButtonStyle(
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ),
-                        DropdownButton<int>(
-                          value: p.missingStrategy,
-                          dropdownColor: Colors.grey.shade800,
-                          items: [
-                            DropdownMenuItem(
-                              value: 0,
-                              child: Text(
-                                p.type == 0
-                                    ? "Fill with Mean"
-                                    : "Fill with Mode",
-                                style: TextStyle(fontSize: 12 * scale),
-                              ),
-                            ),
-                            if (p.type == 0)
-                              DropdownMenuItem(
-                                value: 1,
-                                child: Text(
-                                  "Fill with Median",
-                                  style: TextStyle(fontSize: 12 * scale),
-                                ),
-                              ),
-                            DropdownMenuItem(
-                              value: 2,
-                              child: Text(
-                                p.type == 0
-                                    ? "Fill with Zero (0)"
-                                    : "Treat as 'Unknown'",
-                                style: TextStyle(fontSize: 12 * scale),
-                              ),
-                            ),
-                            DropdownMenuItem(
-                              value: 3,
-                              child: Text(
-                                "Drop Row",
-                                style: TextStyle(
-                                  fontSize: 12 * scale,
-                                  color: Colors.redAccent,
-                                ),
-                              ),
-                            ),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() {
-                                p.missingStrategy = val;
-                              });
-                            }
-                          },
                         ),
                       ],
                     ),
