@@ -45,6 +45,7 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
   final double _missingThreshold = 0.5;
 
   bool _useEqualSampling = false;
+  String? _equalizeTargetColumn; // ★ 新規追加: 均等化対象のカラム名を保持
 
   // --- カスタム特徴量ビルダー用ステート (Formula) ---
   final TextEditingController _featureNameController = TextEditingController();
@@ -639,17 +640,24 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
       }
     }
 
-    bool isEqualSamplingActive = _useEqualSampling && _totalRowCount > 10000;
+    // ★ 選択されたカラム名が存在する場合のみ均等化をアクティブにする
+    bool isEqualSamplingActive =
+        _useEqualSampling &&
+        _totalRowCount > 10000 &&
+        _equalizeTargetColumn != null;
     int targetOutputColIndex = -1;
 
     if (isEqualSamplingActive) {
-      for (int i = 0; i < _profiles.length; i++) {
-        if (_profiles[i].role == 2 && _profiles[i].type == 1) {
-          targetOutputColIndex = i;
-          break;
-        }
+      // ★ ドロップダウンで選択されたカラム名からインデックスを取得する
+      targetOutputColIndex = _profiles.indexWhere(
+        (p) => p.name == _equalizeTargetColumn,
+      );
+
+      // 万が一見つからない、または無視(role==0)設定になっていた場合は均等化をキャンセル
+      if (targetOutputColIndex == -1 ||
+          _profiles[targetOutputColIndex].role == 0) {
+        isEqualSamplingActive = false;
       }
-      if (targetOutputColIndex == -1) isEqualSamplingActive = false;
     }
 
     if (isEqualSamplingActive && _csvFilePath != null) {
@@ -1975,6 +1983,8 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment
+                        .start, // ★追加: 列名が2行以上になった時、右のテキストを「上揃え」にする
                     children: [
                       Expanded(
                         child: Text(
@@ -1987,16 +1997,23 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                                 ? TextDecoration.lineThrough
                                 : null,
                           ),
-                          overflow: TextOverflow.ellipsis,
+                          // ★削除: overflow: TextOverflow.ellipsis を消して自動で改行（複数行化）させる
                         ),
                       ),
-                      Text(
-                        "Missing: ${(missingRate * 100).toStringAsFixed(1)}% | Unique: ${p.uniqueValues.length}",
-                        style: TextStyle(
-                          fontSize: 12 * scale,
-                          color: missingRate > 0.4
-                              ? Colors.redAccent
-                              : Colors.grey,
+                      SizedBox(
+                        width: 8 * scale,
+                      ), // ★追加: 長い列名と右側のテキストが密着しないように少し隙間を空ける
+                      Expanded(
+                        // ★変更: 右側の文字が万が一長くなった場合もレイアウト崩れを防ぐためExpandedで囲む
+                        child: Text(
+                          "Missing: ${(missingRate * 100).toStringAsFixed(1)}% | Unique: ${p.uniqueValues.length}",
+                          style: TextStyle(
+                            fontSize: 12 * scale,
+                            color: missingRate > 0.4
+                                ? Colors.redAccent
+                                : Colors.grey,
+                          ),
+                          textAlign: TextAlign.right, // ★追加: 右寄せを明示
                         ),
                       ),
                     ],
@@ -2191,69 +2208,139 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
             return;
           }
 
-          bool hasCategoryOutput = _profiles.any(
-            (p) => p.role == 2 && p.type == 1,
-          );
-          if (_totalRowCount > 10000 && hasCategoryOutput) {
-            bool? doEqualize = await showDialog<bool>(
+          // ★ 入力・出力を問わず、無視されていないカテゴリ列を全て抽出
+          List<ColumnProfile> categoryCols = _profiles
+              .where((p) => p.role != 0 && p.type == 1)
+              .toList();
+
+          if (_totalRowCount > 10000 && categoryCols.isNotEmpty) {
+            String? selectedCol; // null = 完全ランダムサンプリング(デフォルト)
+
+            bool? confirmed = await showDialog<bool>(
               context: context,
               builder: (BuildContext context) {
-                return AlertDialog(
-                  backgroundColor: Colors.grey.shade900,
-                  title: Text(
-                    "Equalized Sampling",
-                    style: TextStyle(color: Colors.white, fontSize: 18 * scale),
-                  ),
-                  content: Text(
-                    "This dataset has over 10,000 rows.\nWould you like to enable equalized sampling to balance the number of data points for each category in the Output column?",
-                    style: TextStyle(
-                      color: Colors.grey.shade300,
-                      fontSize: 14 * scale,
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      child: Text(
-                        "Cancel",
+                return StatefulBuilder(
+                  builder: (context, setDialogState) {
+                    return AlertDialog(
+                      backgroundColor: Colors.grey.shade900,
+                      title: Text(
+                        "Large Dataset Detected",
                         style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 14 * scale,
+                          color: Colors.white,
+                          fontSize: 18 * scale,
                         ),
                       ),
-                      onPressed: () => Navigator.of(context).pop(null),
-                    ),
-                    TextButton(
-                      child: Text(
-                        "No",
-                        style: TextStyle(
-                          color: Colors.redAccent,
-                          fontSize: 14 * scale,
-                        ),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "This dataset has over 10,000 rows. To ensure performance, a subset of 10,000 rows will be extracted. Please select a sampling strategy:",
+                            style: TextStyle(
+                              color: Colors.grey.shade300,
+                              fontSize: 14 * scale,
+                            ),
+                          ),
+                          SizedBox(height: 16 * scale),
+                          DropdownButtonFormField<String?>(
+                            value: selectedCol,
+                            isDense:
+                                false, // ★修正1: 枠を強制的に縮小するFlutterのデフォルト仕様を解除
+                            itemHeight:
+                                null, // ★修正2: 文字サイズや改行（複数行）に合わせて枠の高さを自動拡張
+                            dropdownColor: Colors.grey.shade800,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Colors.black54,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12 * scale,
+                                vertical:
+                                    16 * scale, // ★修正3: 枠内の上下余白をscale連動でしっかり確保
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(4 * scale),
+                              ),
+                            ),
+                            isExpanded: true,
+                            items: [
+                              DropdownMenuItem<String?>(
+                                value: null,
+                                child: Text(
+                                  "🎲 Completely Random Sampling (Default)",
+                                  style: TextStyle(
+                                    fontSize: 13 * scale,
+                                    color: Colors.white,
+                                  ),
+                                  // ★修正4: overflow: TextOverflow.ellipsis は削除（SE等で自動改行させるため）
+                                ),
+                              ),
+                              ...categoryCols.map(
+                                (p) => DropdownMenuItem<String?>(
+                                  value: p.name,
+                                  child: Text(
+                                    "⚖️ Equalize by: ${p.name} (${p.role == 1 ? 'Input' : 'Output'})",
+                                    style: TextStyle(
+                                      fontSize: 13 * scale,
+                                      color: Colors.orangeAccent,
+                                    ),
+                                    // ★修正4: 同様に overflow を削除
+                                  ),
+                                ),
+                              ),
+                            ],
+                            onChanged: (val) {
+                              setDialogState(() {
+                                selectedCol = val;
+                              });
+                            },
+                          ),
+                        ],
                       ),
-                      onPressed: () => Navigator.of(context).pop(false),
-                    ),
-                    TextButton(
-                      child: Text(
-                        "Yes",
-                        style: TextStyle(
-                          color: Colors.purpleAccent,
-                          fontSize: 14 * scale,
+                      actions: [
+                        TextButton(
+                          child: Text(
+                            "Cancel",
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 14 * scale,
+                            ),
+                          ),
+                          onPressed: () => Navigator.of(context).pop(null),
                         ),
-                      ),
-                      onPressed: () => Navigator.of(context).pop(true),
-                    ),
-                  ],
+                        TextButton(
+                          child: Text(
+                            "Proceed",
+                            style: TextStyle(
+                              color: Colors.greenAccent,
+                              fontSize: 14 * scale,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          onPressed: () => Navigator.of(context).pop(true),
+                        ),
+                      ],
+                    );
+                  },
                 );
               },
             );
 
-            if (doEqualize == null) return;
+            // キャンセルされた場合はそのままリターンして書き出し処理を中断
+            if (confirmed != true) return;
+
             setState(() {
-              _useEqualSampling = doEqualize;
+              if (selectedCol == null) {
+                _useEqualSampling = false;
+                _equalizeTargetColumn = null;
+              } else {
+                _useEqualSampling = true;
+                _equalizeTargetColumn = selectedCol;
+              }
             });
           } else {
             setState(() {
               _useEqualSampling = false;
+              _equalizeTargetColumn = null;
             });
           }
 

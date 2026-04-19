@@ -3,6 +3,16 @@ static const String currentAppVersion = "1.2.0";
 ---------------------------------------------------
 Android版のみ1.4.3で起動時に落ちる不具合を修正
 ---------------------------------------------------
+3.1.6 3160
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・均等化サンプリングの対象軸を、入出力の役割を問わず任意のカテゴリ列から選択できるよう改善しました。
+・各列のカード上で、省略されていた長い列名を全文表示できるようUIを改善しました。
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Enhanced data sampling flexibility by allowing any category column to be selected for balanced extraction.
+・Improved the UI to display full column names on cards without truncation.
+
+
 3.1.5 3150
 ※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
 ・数式ビルダーにフェイルセーフ機能付きの4つの数学関数（対数、ネイピア値、平方根、絶対値）を追加し、CSV一括推論にも適用しました。

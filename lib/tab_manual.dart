@@ -802,7 +802,7 @@ class ManualTab extends StatelessWidget {
               onPressed: () {
                 showLicensePage(
                   context: context,
-                  applicationName: 'hakoniwa_neuralnet',
+                  applicationName: 'Hakoniwa AI',
                   applicationVersion: ShareManager.currentAppVersion,
                 );
               },

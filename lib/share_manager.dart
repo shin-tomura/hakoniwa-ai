@@ -15,7 +15,7 @@ import 'l10n/app_localizations.dart'; // ★辞書のインポートを追加
 
 class ShareManager {
   //
-  static const String currentAppVersion = "3.1.5";
+  static const String currentAppVersion = "3.1.6";
 
   // ======================================================================
   // 1. 出力（エクスポート）機能
