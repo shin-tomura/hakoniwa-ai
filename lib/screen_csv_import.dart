@@ -1025,19 +1025,19 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
     List<MapEntry<String, int>> displayList = [];
     bool hasMiddle = false;
 
-    if (sorted.length <= 6) {
+    if (sorted.length <= 10) {
       displayList = sorted;
     } else {
-      displayList.addAll(sorted.take(3));
+      displayList.addAll(sorted.take(5));
       hasMiddle = true;
-      displayList.addAll(sorted.skip(sorted.length - 3));
+      displayList.addAll(sorted.skip(sorted.length - 5));
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (int i = 0; i < displayList.length; i++) ...[
-          if (hasMiddle && i == 3)
+          if (hasMiddle && i == 5)
             Padding(
               padding: EdgeInsets.symmetric(vertical: 4 * scale),
               child: Center(
