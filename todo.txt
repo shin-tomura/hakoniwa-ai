@@ -3,6 +3,14 @@ static const String currentAppVersion = "1.2.0";
 ---------------------------------------------------
 Android版のみ1.4.3で起動時に落ちる不具合を修正
 ---------------------------------------------------
+3.1.8 3180
+※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
+・全データの統計集計（最大1,000項目までのユニーク数リミッター付き）と最小・最大・平均値の算出方法の微調整により、大規模データでの分析精度を向上しました。
+
+Note: This app is a 100% offline AI learning simulator that runs completely on-device without using any external APIs.
+・Improved analysis accuracy for large datasets by implementing full-data statistics with a unique value limiter of up to 1,000 items and fine-tuning the min, max, and mean calculations.
+
+
 3.1.7 3170
 ※このアプリは外部API不使用、完全ローカル実行のAI学習シミュレーターで、すべてオフラインで完結しています。
 ・カテゴリ列の統計表示において、全件表示の閾値を10項目に拡大し、超過時の表示を上下各5項目に変更しました。

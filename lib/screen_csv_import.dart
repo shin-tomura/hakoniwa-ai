@@ -14,12 +14,25 @@ class ColumnProfile {
   int type; // 0: Numeric, 1: Category
   int missingStrategy; // 0: Mean/Mode, 1: Median, 2: Zero/Unknown, 3: Drop Row
 
+  // サンプルデータ（1万件）向けのプロパティ
   int missingCount = 0;
   Set<String> uniqueValues = {};
   double minVal = double.infinity;
   double maxVal = double.negativeInfinity;
   double sumVal = 0;
   int numericCount = 0;
+
+  // --- 全データ集計用プロパティ ---
+  Map<String, int> globalCategoryCounts = {};
+  int globalMissingCount = 0;
+  int globalTotalCount = 0;
+  bool isHighCardinality = false; // ユニーク数が上限を超えたフラグ
+
+  // --- 全データの数値統計用プロパティ ---
+  double globalMinVal = double.infinity;
+  double globalMaxVal = double.negativeInfinity;
+  double globalSumVal = 0.0;
+  int globalNumericCount = 0;
 
   ColumnProfile(this.name) : role = 1, type = 0, missingStrategy = 0;
 }
@@ -44,8 +57,11 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
   double _cardinalityThreshold = 0.8;
   final double _missingThreshold = 0.5;
 
+  // メモリ爆発を防ぐための全データ集計のユニーク数上限
+  final int _maxGlobalCategories = 1000;
+
   bool _useEqualSampling = false;
-  String? _equalizeTargetColumn; // ★ 新規追加: 均等化対象のカラム名を保持
+  String? _equalizeTargetColumn;
 
   // --- カスタム特徴量ビルダー用ステート (Formula) ---
   final TextEditingController _featureNameController = TextEditingController();
@@ -75,7 +91,7 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
     ')',
   ];
 
-  // --- 新機能: データ変換用ステート (Map / Bin) ---
+  // --- データ変換用ステート (Map / Bin) ---
   int _transformMode = 0; // 0: Map, 1: Bin
 
   // Map(カテゴリ→数値)用
@@ -329,10 +345,44 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
         if (rowCount == 0) {
           headers = _parseCsvLine(line);
           _baseHeaders = List.from(headers);
+          _profiles = _baseHeaders.map((h) => ColumnProfile(h)).toList();
           rowCount++;
           continue;
         }
 
+        List<String> row = _parseCsvLine(line);
+
+        // --- 全データ集計ループ ---
+        for (int i = 0; i < row.length && i < _profiles.length; i++) {
+          var p = _profiles[i];
+          p.globalTotalCount++;
+          String val = row[i];
+
+          if (val.isEmpty || val.toLowerCase() == 'nan') {
+            p.globalMissingCount++;
+          } else {
+            // 数値判定と全データ数値集計
+            double? numVal = double.tryParse(val);
+            if (numVal != null) {
+              p.globalSumVal += numVal;
+              p.globalNumericCount++;
+              if (numVal < p.globalMinVal) p.globalMinVal = numVal;
+              if (numVal > p.globalMaxVal) p.globalMaxVal = numVal;
+            }
+
+            // メモリ制限を超えていない場合のみ、カテゴリのユニーク値をカウント
+            if (!p.isHighCardinality) {
+              p.globalCategoryCounts[val] =
+                  (p.globalCategoryCounts[val] ?? 0) + 1;
+              if (p.globalCategoryCounts.length > _maxGlobalCategories) {
+                p.isHighCardinality = true;
+                p.globalCategoryCounts.clear();
+              }
+            }
+          }
+        }
+
+        // --- 1万件リザーバーサンプリング ---
         if (rawSampledLines.length < 10000) {
           rawSampledLines.add(line);
         } else {
@@ -360,7 +410,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
             "Profiling data...\n(Sampled rows: ${rawSampledLines.length})";
       });
 
-      _profiles = _baseHeaders.map((h) => ColumnProfile(h)).toList();
       _sampledData = [];
 
       for (var line in rawSampledLines) {
@@ -376,7 +425,7 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
             continue;
           }
 
-          p.uniqueValues.add(val);
+          p.uniqueValues.add(val); // サンプル時点のユニーク値
 
           double? numVal = double.tryParse(val);
           if (numVal != null) {
@@ -415,18 +464,41 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
 
   void _applyCardinalityFilter() {
     int sampleSize = _sampledData.length;
-    if (sampleSize == 0) return;
+    if (sampleSize == 0 || _totalRowCount == 0) return;
 
     for (var p in _profiles) {
-      double missingRate = p.missingCount / sampleSize;
-      double cardRate = p.uniqueValues.length / sampleSize;
+      double missingRate = p.globalTotalCount > 0
+          ? p.globalMissingCount / p.globalTotalCount
+          : p.missingCount / sampleSize;
 
-      if (missingRate >= _missingThreshold ||
-          cardRate >= _cardinalityThreshold ||
-          p.uniqueValues.length <= 1) {
+      if (missingRate >= _missingThreshold) {
         p.role = 0;
+        continue;
+      }
+
+      if (p.type == 1) {
+        double cardRate;
+        int uniqueCount;
+
+        if (p.isHighCardinality || p.globalTotalCount == 0) {
+          cardRate = p.uniqueValues.length / sampleSize;
+          uniqueCount = p.uniqueValues.length;
+        } else {
+          cardRate = p.globalCategoryCounts.length / p.globalTotalCount;
+          uniqueCount = p.globalCategoryCounts.length;
+        }
+
+        if (cardRate >= _cardinalityThreshold || uniqueCount <= 1) {
+          p.role = 0;
+        } else {
+          p.role = 1;
+        }
       } else {
-        p.role = 1;
+        if (p.uniqueValues.length <= 1) {
+          p.role = 0;
+        } else {
+          p.role = 1;
+        }
       }
     }
   }
@@ -532,7 +604,10 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
       if (colName != null) {
         var p = _profiles.firstWhere((p) => p.name == colName);
         double counter = 0.0;
-        for (var val in p.uniqueValues) {
+        Iterable<String> keys = p.isHighCardinality || p.globalTotalCount == 0
+            ? p.uniqueValues
+            : p.globalCategoryCounts.keys;
+        for (var val in keys) {
           _mapBindings[val] = counter;
           counter += 1.0;
         }
@@ -614,7 +689,10 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
 
       if (p.type == 0) {
         if (p.missingStrategy == 0) {
-          double mean = p.numericCount > 0 ? (p.sumVal / p.numericCount) : 0.0;
+          // ★ 全データの合計・カウントからMeanを算出する
+          double mean = p.globalNumericCount > 0
+              ? (p.globalSumVal / p.globalNumericCount)
+              : 0.0;
           precomputedMedians[c] = mean;
         } else if (p.missingStrategy == 1) {
           List<double> nums = [];
@@ -632,15 +710,25 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
           precomputedMedians[c] = 0.0;
         }
       } else {
-        if (p.missingStrategy == 0 && p.uniqueValues.isNotEmpty) {
-          precomputedModes[c] = p.uniqueValues.first;
+        if (p.missingStrategy == 0) {
+          if (!p.isHighCardinality &&
+              p.globalTotalCount > 0 &&
+              p.globalCategoryCounts.isNotEmpty) {
+            var maxEntry = p.globalCategoryCounts.entries.reduce(
+              (a, b) => a.value > b.value ? a : b,
+            );
+            precomputedModes[c] = maxEntry.key;
+          } else if (p.uniqueValues.isNotEmpty) {
+            precomputedModes[c] = p.uniqueValues.first;
+          } else {
+            precomputedModes[c] = "Unknown";
+          }
         } else {
           precomputedModes[c] = "Unknown";
         }
       }
     }
 
-    // ★ 選択されたカラム名が存在する場合のみ均等化をアクティブにする
     bool isEqualSamplingActive =
         _useEqualSampling &&
         _totalRowCount > 10000 &&
@@ -648,12 +736,10 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
     int targetOutputColIndex = -1;
 
     if (isEqualSamplingActive) {
-      // ★ ドロップダウンで選択されたカラム名からインデックスを取得する
       targetOutputColIndex = _profiles.indexWhere(
         (p) => p.name == _equalizeTargetColumn,
       );
 
-      // 万が一見つからない、または無視(role==0)設定になっていた場合は均等化をキャンセル
       if (targetOutputColIndex == -1 ||
           _profiles[targetOutputColIndex].role == 0) {
         isEqualSamplingActive = false;
@@ -828,7 +914,10 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
           if (isMissing) {
             val = precomputedModes[c];
           }
-          List<String> catList = p.uniqueValues.toList();
+          List<String> catList = p.isHighCardinality || p.globalTotalCount == 0
+              ? p.uniqueValues.toList()
+              : p.globalCategoryCounts.keys.toList();
+
           if (p.missingStrategy == 2 && !catList.contains("Unknown")) {
             catList.add("Unknown");
           }
@@ -859,7 +948,10 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
       var p = _profiles[c];
       if (p.role == 0) continue;
 
-      List<String> cats = p.uniqueValues.toList();
+      List<String> cats = p.isHighCardinality || p.globalTotalCount == 0
+          ? p.uniqueValues.toList()
+          : p.globalCategoryCounts.keys.toList();
+
       if (p.type == 1 && p.missingStrategy == 2 && !cats.contains("Unknown")) {
         cats.add("Unknown");
       }
@@ -867,8 +959,9 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
       FeatureDef def = FeatureDef(
         name: p.name,
         type: p.type,
-        min: p.minVal == double.infinity ? 0 : p.minVal,
-        max: p.maxVal == double.negativeInfinity ? 100 : p.maxVal,
+        // ★ 全データのmin/maxをセットする
+        min: p.globalMinVal == double.infinity ? 0 : p.globalMinVal,
+        max: p.globalMaxVal == double.negativeInfinity ? 100 : p.globalMaxVal,
         categories: cats,
         missingStrategy: p.missingStrategy,
         fallbackNumeric: p.type == 0 ? precomputedMedians[c] : null,
@@ -897,61 +990,56 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
   }
 
   // ==========================================
-  // --- New Feature: Dynamic Stats Builders ---
+  // --- Dynamic Stats Builders ---
   // ==========================================
 
   Widget _buildNumericStats(ColumnProfile p, int colIndex, double scale) {
-    double minVal = double.infinity;
-    double maxVal = double.negativeInfinity;
-    double sumVal = 0.0;
-    int count = 0;
-    List<double> validValues = [];
+    // ★ Min, Max, Meanは全データ集計値（globalプロパティ）から取得する
+    double minVal = p.globalNumericCount > 0 ? p.globalMinVal : 0.0;
+    double maxVal = p.globalNumericCount > 0 ? p.globalMaxVal : 0.0;
+    double mean = p.globalNumericCount > 0
+        ? p.globalSumVal / p.globalNumericCount
+        : 0.0;
 
-    // Evaluate live from sampled data
+    List<double> validSampleValues = [];
+
+    // ヒストグラムの分布形を描くために、サンプリングデータの値だけ抽出
     for (var row in _sampledData) {
       if (colIndex < row.length) {
         String val = row[colIndex];
         if (val.isNotEmpty && val.toLowerCase() != 'nan') {
           double? numVal = double.tryParse(val);
           if (numVal != null) {
-            if (numVal < minVal) minVal = numVal;
-            if (numVal > maxVal) maxVal = numVal;
-            sumVal += numVal;
-            count++;
-            validValues.add(numVal);
+            validSampleValues.add(numVal);
           }
         }
       }
-    }
-
-    double mean = count > 0 ? sumVal / count : 0.0;
-    if (count == 0) {
-      minVal = 0;
-      maxVal = 0;
     }
 
     int binCount = 20;
     List<int> bins = List.filled(binCount, 0);
     int maxBinCount = 0;
 
-    if (count > 0 && maxVal > minVal) {
+    // ★ ヒストグラムの描画幅も全データの minVal, maxVal を基準にする
+    if (validSampleValues.isNotEmpty && maxVal > minVal) {
       double binSize = (maxVal - minVal) / binCount;
       if (binSize == 0) {
-        bins[0] = count;
-        maxBinCount = count;
+        bins[0] = validSampleValues.length;
+        maxBinCount = validSampleValues.length;
       } else {
-        for (double v in validValues) {
+        for (double v in validSampleValues) {
           int binIdx = ((v - minVal) / binSize).floor();
           if (binIdx >= binCount) binIdx = binCount - 1;
+          if (binIdx < 0) binIdx = 0; // 念のため下限ガード
           bins[binIdx]++;
           if (bins[binIdx] > maxBinCount) {
             maxBinCount = bins[binIdx];
           }
         }
       }
-    } else if (count > 0 && maxVal == minVal) {
-      bins[0] = count;
-      maxBinCount = count;
+    } else if (validSampleValues.isNotEmpty && maxVal == minVal) {
+      bins[0] = validSampleValues.length;
+      maxBinCount = validSampleValues.length;
     }
 
     return Column(
@@ -975,7 +1063,7 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
           ],
         ),
         SizedBox(height: 8 * scale),
-        if (count > 0 && maxBinCount > 0)
+        if (validSampleValues.isNotEmpty && maxBinCount > 0)
           Container(
             height: 40 * scale,
             width: double.infinity,
@@ -1007,12 +1095,17 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
     Map<String, int> counts = {};
     int totalValid = 0;
 
-    for (var row in _sampledData) {
-      if (colIndex < row.length) {
-        String val = row[colIndex];
-        if (val.isNotEmpty && val.toLowerCase() != 'nan') {
-          counts[val] = (counts[val] ?? 0) + 1;
-          totalValid++;
+    if (p.globalTotalCount > 0 && !p.isHighCardinality) {
+      counts = p.globalCategoryCounts;
+      totalValid = p.globalTotalCount - p.globalMissingCount;
+    } else {
+      for (var row in _sampledData) {
+        if (colIndex < row.length) {
+          String val = row[colIndex];
+          if (val.isNotEmpty && val.toLowerCase() != 'nan') {
+            counts[val] = (counts[val] ?? 0) + 1;
+            totalValid++;
+          }
         }
       }
     }
@@ -1185,7 +1278,7 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                           SizedBox(width: 8 * scale),
                           Expanded(
                             child: Text(
-                              "Large dataset detected (Total: $_totalRowCount rows).\nProfiling is based on a random sample of 10,000 rows to save memory.",
+                              "Large dataset detected (Total: $_totalRowCount rows).\nProfiling is based on full data. Output will be sampled to 10,000 rows.",
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 11 * scale,
@@ -1967,8 +2060,19 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
           }
 
           var p = _profiles[index - 3];
-          double missingRate =
-              p.missingCount / (sampleSize > 0 ? sampleSize : 1);
+
+          double missingRate = p.globalTotalCount > 0
+              ? p.globalMissingCount / p.globalTotalCount
+              : (sampleSize > 0 ? p.missingCount / sampleSize : 0.0);
+
+          String uniqueText;
+          if (p.isHighCardinality) {
+            uniqueText = ">$_maxGlobalCategories";
+          } else if (p.globalTotalCount > 0) {
+            uniqueText = "${p.globalCategoryCounts.length}";
+          } else {
+            uniqueText = "${p.uniqueValues.length}";
+          }
 
           return Card(
             margin: EdgeInsets.symmetric(
@@ -1983,8 +2087,7 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment
-                        .start, // ★追加: 列名が2行以上になった時、右のテキストを「上揃え」にする
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: Text(
@@ -1997,23 +2100,19 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                                 ? TextDecoration.lineThrough
                                 : null,
                           ),
-                          // ★削除: overflow: TextOverflow.ellipsis を消して自動で改行（複数行化）させる
                         ),
                       ),
-                      SizedBox(
-                        width: 8 * scale,
-                      ), // ★追加: 長い列名と右側のテキストが密着しないように少し隙間を空ける
+                      SizedBox(width: 8 * scale),
                       Expanded(
-                        // ★変更: 右側の文字が万が一長くなった場合もレイアウト崩れを防ぐためExpandedで囲む
                         child: Text(
-                          "Missing: ${(missingRate * 100).toStringAsFixed(1)}% | Unique: ${p.uniqueValues.length}",
+                          "Missing: ${(missingRate * 100).toStringAsFixed(1)}% | Unique: $uniqueText",
                           style: TextStyle(
                             fontSize: 12 * scale,
                             color: missingRate > 0.4
                                 ? Colors.redAccent
                                 : Colors.grey,
                           ),
-                          textAlign: TextAlign.right, // ★追加: 右寄せを明示
+                          textAlign: TextAlign.right,
                         ),
                       ),
                     ],
@@ -2021,9 +2120,18 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                   SizedBox(height: 4 * scale),
                   Builder(
                     builder: (context) {
-                      List<String> examples = p.uniqueValues.take(3).toList();
+                      List<String> examples =
+                          p.isHighCardinality || p.globalTotalCount == 0
+                          ? p.uniqueValues.take(3).toList()
+                          : p.globalCategoryCounts.keys.take(3).toList();
+
                       String exampleText = examples.join(', ');
-                      if (p.uniqueValues.length > 3) exampleText += ', ...';
+                      if ((p.isHighCardinality
+                              ? p.uniqueValues.length
+                              : p.globalCategoryCounts.length) >
+                          3) {
+                        exampleText += ', ...';
+                      }
                       if (examples.isEmpty) exampleText = "N/A";
                       return Text(
                         "e.g., $exampleText",
@@ -2208,13 +2316,12 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
             return;
           }
 
-          // ★ 入力・出力を問わず、無視されていないカテゴリ列を全て抽出
           List<ColumnProfile> categoryCols = _profiles
               .where((p) => p.role != 0 && p.type == 1)
               .toList();
 
           if (_totalRowCount > 10000 && categoryCols.isNotEmpty) {
-            String? selectedCol; // null = 完全ランダムサンプリング(デフォルト)
+            String? selectedCol;
 
             bool? confirmed = await showDialog<bool>(
               context: context,
@@ -2244,18 +2351,15 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                           SizedBox(height: 16 * scale),
                           DropdownButtonFormField<String?>(
                             value: selectedCol,
-                            isDense:
-                                false, // ★修正1: 枠を強制的に縮小するFlutterのデフォルト仕様を解除
-                            itemHeight:
-                                null, // ★修正2: 文字サイズや改行（複数行）に合わせて枠の高さを自動拡張
+                            isDense: false,
+                            itemHeight: null,
                             dropdownColor: Colors.grey.shade800,
                             decoration: InputDecoration(
                               filled: true,
                               fillColor: Colors.black54,
                               contentPadding: EdgeInsets.symmetric(
                                 horizontal: 12 * scale,
-                                vertical:
-                                    16 * scale, // ★修正3: 枠内の上下余白をscale連動でしっかり確保
+                                vertical: 16 * scale,
                               ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(4 * scale),
@@ -2271,7 +2375,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                                     fontSize: 13 * scale,
                                     color: Colors.white,
                                   ),
-                                  // ★修正4: overflow: TextOverflow.ellipsis は削除（SE等で自動改行させるため）
                                 ),
                               ),
                               ...categoryCols.map(
@@ -2283,7 +2386,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
                                       fontSize: 13 * scale,
                                       color: Colors.orangeAccent,
                                     ),
-                                    // ★修正4: 同様に overflow を削除
                                   ),
                                 ),
                               ),
@@ -2325,7 +2427,6 @@ class _CsvImportConfigScreenState extends State<CsvImportConfigScreen> {
               },
             );
 
-            // キャンセルされた場合はそのままリターンして書き出し処理を中断
             if (confirmed != true) return;
 
             setState(() {
